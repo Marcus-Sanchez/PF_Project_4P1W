@@ -10,10 +10,18 @@ function Play() {
     const [answer, setAnswer] = useState("");
     const [message, setMessage] = useState("");
     const [isCorrect, setIsCorrect] = useState(null);
+    const [score, setScore] = useState(() => {
+        return Number(localStorage.getItem("score")) || 0;
+    });
+    const [answeredCorrectly, setAnsweredCorrectly] = useState(false);
 
     useEffect(() => {
         fetchPuzzle();
     }, [packId]);
+
+    useEffect(() => {
+        localStorage.setItem("score", score);
+    }, [score]);
 
     const fetchPuzzle = async () => {
         try {
@@ -22,6 +30,7 @@ function Play() {
             setMessage("");
             setAnswer("");
             setIsCorrect(null);
+            setAnsweredCorrectly(false);
         } catch (error) {
             console.log("PUZZLE LOAD ERROR:", error);
             setMessage("No puzzle found.");
@@ -35,6 +44,12 @@ function Play() {
             return;
         }
 
+        if (answeredCorrectly) {
+            setMessage("You already solved this puzzle. Click Next Random Puzzle.");
+            setIsCorrect(true);
+            return;
+        }
+
         try {
             const res = await resourceApi.post("/Game/submit", {
                 puzzleId: puzzle.id,
@@ -43,8 +58,14 @@ function Play() {
 
             setMessage(res.data.message);
             setIsCorrect(res.data.correct);
+
+            if (res.data.correct) {
+                setScore((prev) => prev + res.data.scoreDelta);
+                setAnsweredCorrectly(true);
+            }
         } catch (error) {
             console.log("SUBMIT ERROR:", error);
+            console.log("SUBMIT ERROR RESPONSE:", error.response);
             setMessage("Failed to submit answer.");
             setIsCorrect(false);
         }
@@ -57,6 +78,7 @@ function Play() {
     return (
         <div style={styles.container}>
             <h2>Guess the Word</h2>
+            <p><strong>Score:</strong> {score}</p>
 
             <div style={styles.grid}>
                 {puzzle.images.map((img, index) => (
@@ -94,7 +116,18 @@ function Play() {
             </div>
 
             {message && (
-                <p style={{ color: isCorrect === true ? "green" : isCorrect === false ? "red" : "black", marginTop: "15px" }}>
+                <p
+                    style={{
+                        color:
+                            isCorrect === true
+                                ? "green"
+                                : isCorrect === false
+                                    ? "red"
+                                    : "black",
+                        marginTop: "15px",
+                        fontWeight: "bold"
+                    }}
+                >
                     {message}
                 </p>
             )}
